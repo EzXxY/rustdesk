@@ -552,6 +552,7 @@ impl sciter::EventHandler for SciterSession {
         fn toggle_option(String);
         fn get_remember();
         fn peer_platform();
+        fn get_wheel_scroll_lines();
         fn set_write_override(i32, i32, bool, bool, bool);
         fn get_keyboard_mode();
         fn is_keyboard_mode_supported(String);

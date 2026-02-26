@@ -1956,6 +1956,25 @@ pub fn get_win_key_state() -> bool {
     unsafe { is_win_down() == TRUE }
 }
 
+pub fn get_wheel_scroll_lines() -> i32 {
+    unsafe {
+        let mut lines: u32 = 0;
+        let ok = SystemParametersInfoW(
+            SPI_GETWHEELSCROLLLINES,
+            0,
+            &mut lines as *mut _ as _,
+            0,
+        );
+        if ok == 0 || lines == 0 || lines == WHEEL_PAGESCROLL {
+            return 3;
+        }
+        if lines > 100 {
+            return 100;
+        }
+        lines as i32
+    }
+}
+
 pub fn quit_gui() {
     std::process::exit(0);
     // unsafe { PostQuitMessage(0) }; // some how not work
