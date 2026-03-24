@@ -1,0 +1,39 @@
+name: Custom Full Unsigned Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      rendezvous_server:
+        description: 'HBBS / Rendezvous server, e.g. 1.2.3.4 or hbbs.example.com'
+        required: true
+        type: string
+      api_server:
+        description: 'API server, e.g. http://1.2.3.4:21114'
+        required: false
+        default: ''
+        type: string
+      rs_pub_key:
+        description: 'Public key used by your RustDesk server'
+        required: true
+        type: string
+      build_web:
+        description: 'Also build web preview package'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  build:
+    uses: ./.github/workflows/flutter-build.yml
+    secrets: inherit
+    with:
+      upload-artifact: true
+      upload-tag: custom-unsigned
+      build-web: ${{ inputs.build_web }}
+      upload-intermediate-artifacts: false
+    permissions:
+      contents: write
+    env:
+      RS_PUB_KEY: ${{ inputs.rs_pub_key }}
+      RENDEZVOUS_SERVER: ${{ inputs.rendezvous_server }}
+      API_SERVER: ${{ inputs.api_server }}
