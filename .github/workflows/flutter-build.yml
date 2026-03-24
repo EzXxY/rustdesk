@@ -15,6 +15,15 @@ on:
       upload-intermediate-artifacts:
         type: boolean
         default: false
+      rendezvous-server:
+        type: string
+        default: ""
+      api-server:
+        type: string
+        default: ""
+      rs-pub-key:
+        type: string
+        default: ""
 
 # NOTE: F-Droid builder script 'flutter/build_fdroid.sh' reads environment
 # variables from this workflow!
@@ -44,6 +53,9 @@ env:
   #  https://github.com/rustdesk/rustdesk/actions/runs/14414119794/job/40427970174
   # 2. Update the `VCPKG_COMMIT_ID` in `ci.yml` and `playground.yml`.
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
+  RS_PUB_KEY: ${{ inputs.rs-pub-key }}
+  RENDEZVOUS_SERVER: ${{ inputs.rendezvous-server }}
+  API_SERVER: ${{ inputs.api-server }}
   ARMV7_VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836" # 2025.01.13, got "/opt/artifacts/vcpkg/vcpkg: No such file or directory" with latest version
   VERSION: "1.4.6"
   NDK_VERSION: "r28c"

@@ -31,9 +31,6 @@ jobs:
       upload-tag: custom-unsigned
       build-web: ${{ inputs.build_web }}
       upload-intermediate-artifacts: false
-    permissions:
-      contents: write
-    env:
-      RS_PUB_KEY: ${{ inputs.rs_pub_key }}
-      RENDEZVOUS_SERVER: ${{ inputs.rendezvous_server }}
-      API_SERVER: ${{ inputs.api_server }}
+      rendezvous-server: ${{ inputs.rendezvous_server }}
+      api-server: ${{ inputs.api_server }}
+      rs-pub-key: ${{ inputs.rs_pub_key }}
