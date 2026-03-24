@@ -1038,6 +1038,10 @@ pub fn get_custom_rendezvous_server(custom: String) -> String {
     if !custom.is_empty() {
         return custom;
     }
+    let prod = option_env!("RENDEZVOUS_SERVER").unwrap_or_default();
+    if !prod.is_empty() {
+        return prod.to_owned();
+    }
     if !config::PROD_RENDEZVOUS_SERVER.read().unwrap().is_empty() {
         return config::PROD_RENDEZVOUS_SERVER.read().unwrap().clone();
     }
@@ -1069,6 +1073,10 @@ fn get_api_server_(api: String, custom: String) -> String {
             return lic.api.clone();
         }
     }
+    if !api.is_empty() {
+        return api.to_owned();
+    }
+    let api = option_env!("API_SERVER").unwrap_or_default();
     if !api.is_empty() {
         return api.to_owned();
     }
@@ -1530,7 +1538,7 @@ pub async fn get_key(sync: bool) -> String {
         options.remove("key").unwrap_or_default()
     };
     if key.is_empty() {
-        key = config::RS_PUB_KEY.to_owned();
+        key = option_env!("RS_PUB_KEY").unwrap_or(config::RS_PUB_KEY).to_owned();
     }
     key
 }

@@ -1,0 +1,144 @@
+name: Custom RustDesk Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      rendezvous_server:
+        description: 'HBBS / Rendezvous server, e.g. 1.2.3.4 or hbbs.example.com'
+        required: true
+        type: string
+      api_server:
+        description: 'API server, e.g. http://1.2.3.4:21114'
+        required: false
+        default: ''
+        type: string
+      rs_pub_key:
+        description: 'Public key used by your RustDesk server'
+        required: true
+        type: string
+
+env:
+  SCITER_RUST_VERSION: '1.75'
+  LLVM_VERSION: '15.0.6'
+  FLUTTER_VERSION: '3.24.5'
+  VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
+  VCPKG_COMMIT_ID: '120deac3062162151622ca4860575a33844ba10b'
+  RS_PUB_KEY: ${{ inputs.rs_pub_key }}
+  RENDEZVOUS_SERVER: ${{ inputs.rendezvous_server }}
+  API_SERVER: ${{ inputs.api_server }}
+
+jobs:
+  generate-bridge:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install prerequisites
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y clang cmake curl gcc git g++ libclang-dev libgtk-3-dev llvm-dev nasm ninja-build pkg-config wget
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.SCITER_RUST_VERSION }}
+          targets: x86_64-unknown-linux-gnu
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: bridge-ubuntu-22.04
+      - name: Install flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Install flutter rust bridge deps
+        shell: bash
+        run: |
+          cargo install cargo-expand --version 1.0.95 --locked
+          cargo install flutter_rust_bridge_codegen --version 1.80.1 --features "uuid" --locked
+          pushd flutter && sed -i -e 's/extended_text: 14.0.0/extended_text: 13.0.0/g' pubspec.yaml && flutter pub get && popd
+      - name: Run flutter rust bridge
+        run: |
+          ~/.cargo/bin/flutter_rust_bridge_codegen --rust-input ./src/flutter_ffi.rs --dart-output ./flutter/lib/generated_bridge.dart --c-output ./flutter/macos/Runner/bridge_generated.h
+          cp ./flutter/macos/Runner/bridge_generated.h ./flutter/ios/Runner/bridge_generated.h
+      - name: Upload bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridge-artifact
+          path: |
+            ./src/bridge_generated.rs
+            ./src/bridge_generated.io.rs
+            ./flutter/lib/generated_bridge.dart
+            ./flutter/lib/generated_bridge.freezed.dart
+            ./flutter/macos/Runner/bridge_generated.h
+            ./flutter/ios/Runner/bridge_generated.h
+
+  build-windows-x64:
+    name: windows-x64-unsigned
+    runs-on: windows-2022
+    needs: generate-bridge
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v4
+        with:
+          name: bridge-artifact
+          path: ./
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: ${{ env.LLVM_VERSION }}
+      - name: Install flutter
+        uses: subosito/flutter-action@v2.12.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - name: Replace engine with rustdesk custom flutter engine
+        shell: powershell
+        run: |
+          flutter doctor -v
+          flutter precache --windows
+          Invoke-WebRequest -Uri https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip -OutFile windows-x64-release.zip
+          Expand-Archive -Path windows-x64-release.zip -DestinationPath windows-x64-release
+          Move-Item -Force windows-x64-release/* C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64/bin/cache/artifacts/engine/windows-x64-release/
+      - name: Patch flutter
+        shell: bash
+        run: |
+          cp .github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff $(dirname $(dirname $(which flutter)))
+          cd $(dirname $(dirname $(which flutter)))
+          [[ "3.24.5" == ${{env.FLUTTER_VERSION}} ]] && git apply flutter_3.24.4_dropdown_menu_enableFilter.diff
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.SCITER_RUST_VERSION }}
+          targets: x86_64-pc-windows-msvc
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: windows-2022
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: C:\vcpkg
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+          doNotCache: false
+      - name: Install vcpkg dependencies
+        env:
+          VCPKG_DEFAULT_HOST_TRIPLET: x64-windows-static
+        shell: bash
+        run: |
+          $VCPKG_ROOT/vcpkg install --triplet x64-windows-static --x-install-root="$VCPKG_ROOT/installed"
+          head -n 100 "$VCPKG_ROOT/buildtrees/ffmpeg/build-x64-windows-static-rel-out.log" || true
+      - name: Build rustdesk
+        shell: powershell
+        run: |
+          python3 .\build.py --portable --hwcodec --flutter --vram --skip-portable-pack
+          Move-Item ./flutter/build/windows/x64/runner/Release ./rustdesk
+      - name: Upload unsigned windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustdesk-windows-x64-unsigned
+          path: rustdesk
