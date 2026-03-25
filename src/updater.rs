@@ -29,13 +29,22 @@ pub fn update_controlling_session_count(count: usize) {
 }
 
 #[allow(dead_code)]
-pub fn start_auto_update() {}
+pub fn start_auto_update() {
+    let _sender = TX_MSG.lock().unwrap();
+}
 
 #[allow(dead_code)]
-pub fn manually_check_update() -> ResultType<()> { Ok(()) }
+pub fn manually_check_update() -> ResultType<()> {
+    let sender = TX_MSG.lock().unwrap();
+    sender.send(UpdateMsg::CheckUpdate)?;
+    Ok(())
+}
 
 #[allow(dead_code)]
-pub fn stop_auto_update() {}
+pub fn stop_auto_update() {
+    let sender = TX_MSG.lock().unwrap();
+    sender.send(UpdateMsg::Exit).unwrap_or_default();
+}
 
 #[inline]
 fn has_no_active_conns() -> bool {
