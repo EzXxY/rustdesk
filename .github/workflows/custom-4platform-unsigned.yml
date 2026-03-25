@@ -25,7 +25,7 @@ jobs:
       upload-artifact: true
       upload-tag: custom-4platform-unsigned
       build-web: false
-      upload-intermediate-artifacts: false
+      upload-intermediate-artifacts: true
       rendezvous-server: ${{ inputs.rendezvous_server }}
       api-server: ${{ inputs.api_server }}
       rs-pub-key: ${{ inputs.rs_pub_key }}
