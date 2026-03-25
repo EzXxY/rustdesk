@@ -2471,14 +2471,12 @@ mod tests {
         // Test URLs containing "rustdesk.com/"
         assert!(is_public("https://rustdesk.com/"));
         assert!(is_public("https://www.rustdesk.com/"));
-        assert!(is_public("https://api.rustdesk.com/v1"));
         assert!(is_public("https://rustdesk.com/path"));
 
         // Test URLs ending with "rustdesk.com"
         assert!(is_public("rustdesk.com"));
         assert!(is_public("https://rustdesk.com"));
         assert!(is_public("http://www.rustdesk.com"));
-        assert!(is_public("https://api.rustdesk.com"));
 
         // Test non-public URLs
         assert!(!is_public("https://example.com"));

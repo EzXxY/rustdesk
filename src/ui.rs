@@ -510,7 +510,7 @@ impl UI {
     }
 
     fn get_software_update_url(&self) -> String {
-        crate::SOFTWARE_UPDATE_URL.lock().unwrap().clone()
+        "".to_owned()
     }
 
     fn get_new_version(&self) -> String {

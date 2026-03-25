@@ -1665,7 +1665,9 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         with:
           name: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.deb
-          path: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.deb
+          path: |
+            rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.deb
+            rustdesk-*.deb
 
       # only x86_64 for arch since we can not find newest arm64 docker image to build
       # old arch image does not make sense for arch since it is "arch" which always update to date
