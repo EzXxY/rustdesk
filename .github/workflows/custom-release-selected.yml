@@ -1,0 +1,43 @@
+name: Custom Release Selected Targets
+
+on:
+  workflow_dispatch:
+    inputs:
+      rendezvous_server:
+        description: HBBS / Rendezvous server
+        required: true
+        type: string
+      api_server:
+        description: API server
+        required: false
+        default: ''
+        type: string
+      rs_pub_key:
+        description: Public key used by your RustDesk server
+        required: true
+        type: string
+      release_tag:
+        description: Release tag name to publish artifacts into
+        required: false
+        default: selfhosted-latest
+        type: string
+
+jobs:
+  build:
+    uses: ./.github/workflows/flutter-build.yml
+    secrets: inherit
+    with:
+      upload-artifact: true
+      upload-tag: ${{ inputs.release_tag }}
+      build-web: false
+      upload-intermediate-artifacts: false
+      rendezvous-server: ${{ inputs.rendezvous_server }}
+      api-server: ${{ inputs.api_server }}
+      rs-pub-key: ${{ inputs.rs_pub_key }}
+      build-windows: true
+      build-linux: true
+      build-android: false
+      build-ios: false
+      build-macos: true
+      build-linux-sciter: true
+      publish-release: true
