@@ -940,19 +940,15 @@ pub fn is_modifier(evt: &KeyEvent) -> bool {
 }
 
 pub fn check_software_update() {
-    if is_custom_client() {
-        return;
-    }
-    let opt = LocalConfig::get_option(keys::OPTION_ENABLE_CHECK_UPDATE);
-    if config::option2bool(keys::OPTION_ENABLE_CHECK_UPDATE, &opt) {
-        std::thread::spawn(move || allow_err!(do_check_software_update()));
-    }
+    *SOFTWARE_UPDATE_URL.lock().unwrap() = "".to_string();
 }
 
 // No need to check `danger_accept_invalid_cert` for now.
 // Because the url is always `https://api.rustdesk.com/version/latest`.
 #[tokio::main(flavor = "current_thread")]
 pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
+    *SOFTWARE_UPDATE_URL.lock().unwrap() = "".to_string();
+    return Ok(());
     let (request, url) =
         hbb_common::version_check_request(hbb_common::VER_TYPE_RUSTDESK_CLIENT.to_string());
     let proxy_conf = Config::get_socks();
@@ -1089,7 +1085,7 @@ fn get_api_server_(api: String, custom: String) -> String {
             return format!("http://{}", s);
         }
     }
-    "https://admin.rustdesk.com".to_owned()
+    "".to_owned()
 }
 
 #[inline]
@@ -1098,17 +1094,11 @@ pub fn is_public(url: &str) -> bool {
 }
 
 pub fn get_udp_punch_enabled() -> bool {
-    config::option2bool(
-        keys::OPTION_ENABLE_UDP_PUNCH,
-        &get_local_option(keys::OPTION_ENABLE_UDP_PUNCH),
-    )
+    false
 }
 
 pub fn get_ipv6_punch_enabled() -> bool {
-    config::option2bool(
-        keys::OPTION_ENABLE_IPV6_PUNCH,
-        &get_local_option(keys::OPTION_ENABLE_IPV6_PUNCH),
-    )
+    false
 }
 
 pub fn get_local_option(key: &str) -> String {
@@ -2075,20 +2065,15 @@ async fn stun_ipv4_test(stun_server: &str) -> ResultType<(SocketAddr, String)> {
     })
 }
 
-static STUNS_V4: [&str; 3] = [
-    "stun.l.google.com:19302",
-    "stun.cloudflare.com:3478",
-    "stun.nextcloud.com:3478",
-];
+static STUNS_V4: [&str; 0] = [];
 
-static STUNS_V6: [&str; 3] = [
-    "stun.l.google.com:19302",
-    "stun.cloudflare.com:3478",
-    "stun.nextcloud.com:3478",
-];
+static STUNS_V6: [&str; 0] = [];
 
 pub async fn test_nat_ipv4() -> ResultType<(SocketAddr, String)> {
     use hbb_common::futures::future::{select_ok, FutureExt};
+    if STUNS_V4.is_empty() {
+        bail!("Public STUN disabled");
+    }
     let tests = STUNS_V4
         .iter()
         .map(|&stun| stun_ipv4_test(stun).boxed())
@@ -2110,6 +2095,9 @@ pub async fn test_nat_ipv4() -> ResultType<(SocketAddr, String)> {
 async fn test_bind_ipv6() -> ResultType<SocketAddr> {
     let local_addr = SocketAddr::from(([0u16; 8], 0)); // [::]:0
     let socket = UdpSocket::bind(local_addr).await?;
+    if STUNS_V6.is_empty() {
+        bail!("Public STUN disabled");
+    }
     let addr = STUNS_V6[0]
         .to_socket_addrs()?
         .filter(|x| x.is_ipv6())
@@ -2186,6 +2174,9 @@ pub async fn test_ipv6() -> Option<tokio::task::JoinHandle<()>> {
 
     Some(tokio::spawn(async {
         use hbb_common::futures::future::{select_ok, FutureExt};
+        if STUNS_V6.is_empty() {
+            bail!("Public STUN disabled");
+        }
         let tests = STUNS_V6
             .iter()
             .map(|&stun| stun_ipv6_test(stun).boxed())

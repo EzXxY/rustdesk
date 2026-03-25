@@ -473,7 +473,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             "Status", "Your installation is lower version.", "Click to upgrade",
             () async {
           await rustDeskWinManager.closeAllSubWindows();
-          bind.mainUpdateMe();
         });
       }
     } else if (isMacOS) {
