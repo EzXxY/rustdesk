@@ -480,6 +480,15 @@ jobs:
         run: |
           BASE_URL=${{ env.SIGN_BASE_URL }} SECRET_KEY=${{ secrets.SIGN_SECRET_KEY }} python3 res/job.py sign_files ./SignOutput/
 
+      - name: Upload x86 sciter exe artifact
+        if: env.UPLOAD_ARTIFACT == 'true'
+        uses: actions/upload-artifact@master
+        with:
+          name: rustdesk-x86-sciter-exe
+          path: |
+            ./SignOutput/rustdesk-*.exe
+            ./target/release/rustdesk-portable-packer.exe
+
       - name: Publish Release
         uses: softprops/action-gh-release@v1
         if: false
@@ -1675,6 +1684,14 @@ jobs:
           path: |
             rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.deb
             rustdesk-*.deb
+
+      - name: Upload rpm artifacts
+        uses: actions/upload-artifact@master
+        if: env.UPLOAD_ARTIFACT == 'true'
+        with:
+          name: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.rpm-bundle
+          path: |
+            rustdesk-*.rpm
 
       # only x86_64 for arch since we can not find newest arm64 docker image to build
       # old arch image does not make sense for arch since it is "arch" which always update to date
