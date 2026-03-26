@@ -332,7 +332,6 @@ jobs:
 
   # The fallback for the flutter version, we use Sciter for 32bit Windows.
   build-for-windows-sciter:
-    if: false
     name: ${{ matrix.job.target }} (${{ matrix.job.os }})
     runs-on: ${{ matrix.job.os }}
     # Temporarily disable this action due to additional test is needed.
@@ -449,6 +448,14 @@ jobs:
           name: rustdesk-unsigned-windows-${{ matrix.job.arch }}
           path: Release
 
+      - name: Upload Windows sciter installer artifacts
+        if: env.UPLOAD_ARTIFACT == 'true'
+        uses: actions/upload-artifact@master
+        with:
+          name: rustdesk-windows-sciter-installers-${{ matrix.job.arch }}
+          path: |
+            ./SignOutput/rustdesk-*.exe
+
       - name: Sign rustdesk files
         if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
         shell: bash
@@ -475,7 +482,7 @@ jobs:
 
       - name: Publish Release
         uses: softprops/action-gh-release@v1
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: false
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
@@ -1909,7 +1916,7 @@ jobs:
           done
 
       - name: Publish debian package
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: false
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
@@ -1925,7 +1932,6 @@ jobs:
           path: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.deb
 
   build-appimage:
-    if: false
     name: Build appimage ${{ matrix.job.target }}
     needs: [build-rustdesk-linux]
     runs-on: ubuntu-22.04
@@ -1973,7 +1979,7 @@ jobs:
           path: ./appimage/rustdesk-${{ env.VERSION }}-*.AppImage
 
       - name: Publish appimage package
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: false
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
@@ -1982,7 +1988,6 @@ jobs:
             ./appimage/rustdesk-${{ env.VERSION }}-*.AppImage
 
   build-flatpak:
-    if: false
     name: Build flatpak ${{ matrix.job.target }}${{ matrix.job.suffix }}
     needs:
       - build-rustdesk-linux
@@ -2066,6 +2071,7 @@ jobs:
           path: flatpak/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak
 
       - name: Publish flatpak package
+        if: false
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
