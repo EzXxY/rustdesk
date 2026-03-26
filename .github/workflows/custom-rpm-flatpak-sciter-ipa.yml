@@ -1,0 +1,74 @@
+name: Custom RPM Flatpak Sciter IPA Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      rendezvous_server:
+        description: HBBS / Rendezvous server
+        required: true
+        type: string
+      api_server:
+        description: API server
+        required: false
+        default: ''
+        type: string
+      rs_pub_key:
+        description: Public key used by your RustDesk server
+        required: true
+        type: string
+      release_tag:
+        description: Release tag to upload successful packages into
+        required: false
+        default: selfhosted-packages
+        type: string
+
+jobs:
+  build:
+    uses: ./.github/workflows/flutter-build.yml
+    secrets: inherit
+    with:
+      upload-artifact: true
+      upload-tag: ${{ inputs.release_tag }}
+      build-web: false
+      upload-intermediate-artifacts: true
+      rendezvous-server: ${{ inputs.rendezvous_server }}
+      api-server: ${{ inputs.api_server }}
+      rs-pub-key: ${{ inputs.rs_pub_key }}
+      build-windows: true
+      build-linux: true
+      build-android: false
+      build-ios: true
+      build-macos: false
+      build-linux-sciter: true
+      publish-release: false
+
+  publish-collected:
+    runs-on: ubuntu-latest
+    needs: build
+    if: always()
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          merge-multiple: true
+      - name: Show collected files
+        run: find ./artifacts -maxdepth 8 -type f | sort
+      - name: Publish selected packages to release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          tag_name: ${{ inputs.release_tag }}
+          files: |
+            ./artifacts/**/*x86*sciter*.exe
+            ./artifacts/**/*armv7*sciter*.deb
+            ./artifacts/**/*x86_64*.rpm
+            ./artifacts/**/*aarch64*.rpm
+            ./artifacts/**/*x86_64*suse*.rpm
+            ./artifacts/**/*aarch64*suse*.rpm
+            ./artifacts/**/*.flatpak
+            ./artifacts/**/*unsigned-ipa/*.ipa
+            ./artifacts/**/*unsigned-ipa/**/*.ipa
+            ./artifacts/**/*.ipa
