@@ -23,6 +23,26 @@ Yet another remote desktop solution, written in Rust. Works out of the box with 
 
 RustDesk welcomes contribution from everyone. See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for help getting started.
 
+> [!IMPORTANT]
+> **自建打包入口（显眼保留）**
+>
+> 这个仓库目前建议优先使用下面 3 条 GitHub Actions：
+>
+> 1. **主线 4 端构建**：`.github/workflows/custom-4platform-unsigned.yml`
+>    - 目标：Windows / Linux / Android / iOS(IPA 文件)
+>    - 用途：源码更新后，先验证主线能不能继续正常构建
+>
+> 2. **桌面主线发布**：`.github/workflows/custom-package-matrix.yml`
+>    - 目标：Windows x64、Linux deb、macOS dmg 等主流桌面产物
+>    - 用途：把主流成品统一汇总进 release
+>
+> 3. **补缺包发布**：`.github/workflows/custom-rpm-flatpak-sciter-ipa.yml`
+>    - 目标：x86 Sciter、rpm、suse rpm、flatpak、IPA 文件等补齐类产物
+>    - 用途：当主线包已经齐了，只补 release 里缺的包
+>
+> 详细说明见：[`docs/SELFHOSTED_BUILD_WORKFLOWS.md`](docs/SELFHOSTED_BUILD_WORKFLOWS.md)
+
+
 [**FAQ**](https://github.com/rustdesk/rustdesk/wiki/FAQ)
 
 [**BINARY DOWNLOAD**](https://github.com/rustdesk/rustdesk/releases)
