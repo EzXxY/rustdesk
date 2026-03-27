@@ -630,7 +630,23 @@ jobs:
           mkdir -p ./ipa-out
           find . -type f \( -name '*.ipa' -o -name 'Runner.ipa' \) -exec cp -f {} ./ipa-out/ \; || true
           if [ -z "$(find ./ipa-out -maxdepth 1 -type f -name '*.ipa' -print -quit)" ]; then
-            echo 'No ipa found after build' >&2
+            echo 'No ipa found directly, try making one from xcarchive'
+            archive_dir=$(find . -type d -path '*/flutter/build/ios/archive/*.xcarchive' | head -n 1 || true)
+            if [ -z "$archive_dir" ]; then
+              archive_dir=$(find . -type d -name '*.xcarchive' | head -n 1 || true)
+            fi
+            echo "archive_dir=$archive_dir"
+            if [ -n "$archive_dir" ] && [ -d "$archive_dir/Products/Applications/Runner.app" ]; then
+              mkdir -p Payload
+              cp -R "$archive_dir/Products/Applications/Runner.app" Payload/Runner.app
+              /usr/bin/zip -qry ./ipa-out/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-unsigned.ipa Payload
+              rm -rf Payload
+            fi
+          fi
+          echo '=== IPA OUT ==='
+          find ./ipa-out -maxdepth 2 -type f | sed -n '1,120p'
+          if [ -z "$(find ./ipa-out -maxdepth 1 -type f -name '*.ipa' -print -quit)" ]; then
+            echo 'No ipa found after build/archive packaging' >&2
             exit 1
           fi
 
