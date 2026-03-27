@@ -602,6 +602,25 @@ jobs:
           # for easy debugging
           flutter build ipa --release --no-codesign
 
+
+      - name: Prepare ipa bundle for artifact upload
+        if: env.UPLOAD_ARTIFACT == 'true'
+        shell: bash
+        run: |
+          mkdir -p ./ipa-out
+          find . -type f \( -name '*.ipa' -o -name 'Runner.ipa' \) -exec cp -f {} ./ipa-out/ \; || true
+          if [ -z "$(find ./ipa-out -maxdepth 1 -type f -name '*.ipa' -print -quit)" ]; then
+            echo 'No ipa found after build' >&2
+            exit 1
+          fi
+
+      - name: Upload unsigned ipa Artifacts
+        if: env.UPLOAD_ARTIFACT == 'true'
+        uses: actions/upload-artifact@master
+        with:
+          name: rustdesk-ios-${{ env.VERSION }}-${{ matrix.job.arch }}-unsigned-ipa
+          path: ./ipa-out/*.ipa
+
       - name: Upload unsigned ipa Artifacts
         if: env.UPLOAD_ARTIFACT == 'true'
         uses: actions/upload-artifact@master
