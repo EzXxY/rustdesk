@@ -1,0 +1,147 @@
+name: Custom iOS Only Debug
+
+on:
+  workflow_dispatch:
+    inputs:
+      rendezvous_server:
+        description: HBBS / Rendezvous server
+        required: true
+        type: string
+      api_server:
+        description: API server
+        required: false
+        default: ''
+        type: string
+      rs_pub_key:
+        description: Public key used by your RustDesk server
+        required: true
+        type: string
+
+jobs:
+  generate-bridge:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install prerequisites
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y clang cmake curl gcc git g++ libclang-dev libgtk-3-dev llvm-dev nasm ninja-build pkg-config wget
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: 1.75
+          targets: x86_64-unknown-linux-gnu
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: bridge-ubuntu-22.04
+      - name: Install flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.24.5
+          cache: true
+      - name: Install flutter rust bridge deps
+        shell: bash
+        run: |
+          cargo install cargo-expand --version 1.0.95 --locked
+          cargo install flutter_rust_bridge_codegen --version 1.80.1 --features "uuid" --locked
+          pushd flutter && sed -i -e 's/extended_text: 14.0.0/extended_text: 13.0.0/g' pubspec.yaml && flutter pub get && popd
+      - name: Run flutter rust bridge
+        run: |
+          ~/.cargo/bin/flutter_rust_bridge_codegen --rust-input ./src/flutter_ffi.rs --dart-output ./flutter/lib/generated_bridge.dart --c-output ./flutter/macos/Runner/bridge_generated.h
+          cp ./flutter/macos/Runner/bridge_generated.h ./flutter/ios/Runner/bridge_generated.h
+      - name: Upload bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridge-artifact
+          path: |
+            ./src/bridge_generated.rs
+            ./src/bridge_generated.io.rs
+            ./flutter/lib/generated_bridge.dart
+            ./flutter/lib/generated_bridge.freezed.dart
+            ./flutter/macos/Runner/bridge_generated.h
+            ./flutter/ios/Runner/bridge_generated.h
+
+  build-ios-debug:
+    runs-on: macos-latest
+    needs: generate-bridge
+    env:
+      RS_PUB_KEY: ${{ inputs.rs_pub_key }}
+      RENDEZVOUS_SERVER: ${{ inputs.rendezvous_server }}
+      API_SERVER: ${{ inputs.api_server }}
+      FLUTTER_VERSION: 3.24.5
+      VCPKG_COMMIT_ID: 120deac3062162151622ca4860575a33844ba10b
+      RUST_VERSION: 1.75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v4
+        with:
+          name: bridge-artifact
+          path: ./
+      - name: Install dependencies
+        run: |
+          brew install nasm yasm || true
+      - name: Install flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - name: Patch flutter
+        run: |
+          cd $(dirname $(dirname $(which flutter)))
+          [[ "3.24.5" == ${{env.FLUTTER_VERSION}} ]] && git apply ${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+          doNotCache: false
+      - name: Install vcpkg dependencies
+        run: |
+          $VCPKG_ROOT/vcpkg install --triplet arm64-ios --x-install-root="$VCPKG_ROOT/installed"
+          head -n 100 "$VCPKG_ROOT/buildtrees/ffmpeg/build-arm64-ios-rel-out.log" || true
+        shell: bash
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: aarch64-apple-ios
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: rustdesk-lib-cache-ios-debug
+          key: aarch64-apple-ios
+      - name: Build rustdesk lib
+        run: |
+          rustup target add aarch64-apple-ios
+          cargo build --features flutter,hwcodec --release --target aarch64-apple-ios --lib
+      - name: Build ipa (debug inspect)
+        shell: bash
+        run: |
+          pushd flutter
+          flutter build ipa --release --no-codesign || true
+          popd
+          echo '=== FIND IPA FILES ==='
+          find . -type f -name '*.ipa' | sed -n '1,400p' || true
+          echo '=== FIND XCARCHIVE FILES ==='
+          find . -type d -name '*.xcarchive' | sed -n '1,200p' || true
+          echo '=== FIND IOS BUILD TREE ==='
+          find . -path '*/build/ios*' | sed -n '1,500p' || true
+          mkdir -p ipa-debug-out
+          find . -type f -name '*.ipa' -exec cp -f {} ipa-debug-out/ \; || true
+          tar czf ipa-debug-bundle.tar.gz ipa-debug-out flutter/build 2>/dev/null || tar czf ipa-debug-bundle.tar.gz ipa-debug-out
+      - name: Upload ipa debug bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipa-debug-bundle
+          path: ipa-debug-bundle.tar.gz
+      - name: Upload ipa files if found
+        if: ${{ hashFiles('ipa-debug-out/*.ipa') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-found
+          path: ipa-debug-out/*.ipa
