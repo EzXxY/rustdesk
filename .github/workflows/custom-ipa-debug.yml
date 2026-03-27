@@ -1,0 +1,38 @@
+name: Custom IPA Debug
+
+on:
+  workflow_dispatch:
+    inputs:
+      rendezvous_server:
+        description: HBBS / Rendezvous server
+        required: true
+        type: string
+      api_server:
+        description: API server
+        required: false
+        default: ''
+        type: string
+      rs_pub_key:
+        description: Public key used by your RustDesk server
+        required: true
+        type: string
+
+jobs:
+  build:
+    uses: ./.github/workflows/flutter-build.yml
+    secrets: inherit
+    with:
+      upload-artifact: true
+      upload-tag: ipa-debug
+      build-web: false
+      upload-intermediate-artifacts: true
+      rendezvous-server: ${{ inputs.rendezvous_server }}
+      api-server: ${{ inputs.api_server }}
+      rs-pub-key: ${{ inputs.rs_pub_key }}
+      build-windows: false
+      build-linux: false
+      build-android: false
+      build-ios: true
+      build-macos: false
+      build-linux-sciter: false
+      publish-release: false

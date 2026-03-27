@@ -603,6 +603,26 @@ jobs:
           flutter build ipa --release --no-codesign
 
 
+      - name: Upload ipa debug bundle
+        if: always()
+        shell: bash
+        run: |
+          echo '=== FIND IPA FILES ==='
+          find . -type f -name '*.ipa' | sed -n '1,300p' || true
+          echo '=== FIND IOS BUILD TREE ==='
+          find . -path '*/build/ios*' | sed -n '1,500p' || true
+          mkdir -p ipa-debug-tree
+          cp -r flutter/build ios-debug-build-copy 2>/dev/null || true
+          tar czf ipa-debug-bundle.tar.gz ipa-debug-tree ios-debug-build-copy 2>/dev/null || tar czf ipa-debug-bundle.tar.gz .
+
+      - name: Upload ipa debug bundle artifact
+        if: always()
+        uses: actions/upload-artifact@master
+        with:
+          name: ipa-debug-bundle
+          path: ipa-debug-bundle.tar.gz
+
+
       - name: Prepare ipa bundle for artifact upload
         if: env.UPLOAD_ARTIFACT == 'true'
         shell: bash
